@@ -18,7 +18,7 @@ BUCKET         = os.getenv("BUCKET", "nca-bucket")
 API_KEY        = os.getenv("API_KEY", "")                       # auth dla /storyboard (naglowek x-api-key)
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
 DB_PATH        = os.getenv("DB_PATH", "/data/proxies.db")
-MAX_PROXY_TRIES = int(os.getenv("MAX_PROXY_TRIES", "8"))        # ile roznych proxy sprobowac zanim fail
+MAX_PROXY_TRIES = int(os.getenv("MAX_PROXY_TRIES", "15"))       # ile roznych proxy sprobowac zanim fail
 AUTO_DISABLE_AFTER = int(os.getenv("AUTO_DISABLE_AFTER", "5"))  # po ilu consec fail wylaczyc proxy
 TILE_W, TILE_H = 320, 180
 
