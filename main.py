@@ -207,24 +207,80 @@ def toggle_proxy(pid: int, x_dashboard_password: Optional[str] = Header(default=
 def dashboard():
     return DASH_HTML
 
-DASH_HTML = """<!doctype html><html><head><meta charset=utf-8><title>Storyboard proxies</title>
-<style>body{font-family:system-ui;background:#111;color:#eee;max-width:900px;margin:20px auto;padding:0 16px}
-input,textarea,button{background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:8px;font-size:13px}
-table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #333;padding:6px 8px;text-align:left;font-size:13px}
-.on{color:#4ade80}.off{color:#f87171}button{cursor:pointer}</style></head><body>
-<h2>Storyboard — pula proxy</h2>
-<div><input id=pw type=password placeholder="dashboard password" style=width:240px> <button onclick=load()>Zaloguj / odswiez</button></div>
-<h3>Dodaj proxy (jedna na linie: http://user:pass@ip:port)</h3>
-<textarea id=add rows=4 style=width:100%></textarea><br><button onclick=addP()>Dodaj</button>
-<table id=tbl><thead><tr><th>id</th><th>proxy</th><th>active</th><th>ok</th><th>fail</th><th>consec</th><th></th></tr></thead><tbody></tbody></table>
+DASH_HTML = """<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Storyboard Service</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0e17;color:#e5e7eb;font-size:14px}
+.nav{background:#0d1220;border-bottom:1px solid #1e2536;padding:14px 24px;display:flex;align-items:center;gap:12px}
+.logo{font-size:18px;font-weight:600}
+.badge{background:#1e2536;color:#8b93a7;font-size:11px;padding:2px 8px;border-radius:6px}
+.wrap{max-width:1000px;margin:24px auto;padding:0 24px;display:flex;flex-direction:column;gap:20px}
+.card{background:#131823;border:1px solid #1e2536;border-radius:12px;padding:20px 24px}
+.card h2{font-size:15px;font-weight:600;margin-bottom:16px}
+label{display:block;font-size:12px;color:#8b93a7;margin-bottom:6px}
+input,textarea{width:100%;background:#0a0e17;border:1px solid #262d3d;border-radius:8px;padding:10px 12px;color:#e5e7eb;font-size:13px;font-family:inherit}
+input:focus,textarea:focus{outline:none;border-color:#3b82f6}
+.btn{background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#2563eb}
+.btn.sm{padding:5px 12px;font-size:12px}
+.btn.ghost{background:transparent;border:1px solid #262d3d;color:#8b93a7}
+.btn.ghost:hover{background:#1a1f2e}
+.btn.red{background:transparent;border:1px solid #3d2626;color:#ef4444}
+.btn.red:hover{background:#2a1818}
+.row{display:flex;gap:10px;align-items:flex-end}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;color:#8b93a7;text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid #1e2536}
+td{padding:10px;border-bottom:1px solid #161b28;font-size:13px;vertical-align:middle}
+.pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.pill.on{background:#0f2a1a;color:#22c55e}
+.pill.off{background:#2a1515;color:#ef4444}
+.muted{color:#8b93a7;font-size:12px}
+.empty{color:#8b93a7;text-align:center;padding:24px}
+.mono{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px}
+</style></head><body>
+<div class=nav><span class=logo>Storyboard</span><span class=badge>v1</span><span class=muted style=margin-left:auto id=stat></span></div>
+<div class=wrap>
+
+<div class=card>
+<h2>Dostęp</h2>
+<div class=row><div style=flex:1><label>Dashboard password</label><input id=pw type=password placeholder="hasło"></div><button class=btn onclick=load()>Zaloguj</button></div>
+</div>
+
+<div class=card>
+<h2>Test storyboard</h2>
+<label>YouTube URL</label>
+<div class=row><div style=flex:1><input id=turl placeholder="https://www.youtube.com/watch?v=..."></div><button class=btn onclick=test()>Pobierz klatki</button></div>
+<div id=tres class=muted style=margin-top:14px></div>
+</div>
+
+<div class=card>
+<h2>Dodaj proxy</h2>
+<label>Jedna na linię — http://user:pass@ip:port</label>
+<textarea id=add rows=4 placeholder="http://user:pass@1.2.3.4:8080"></textarea>
+<div style=margin-top:12px><button class=btn onclick=addP()>Dodaj do puli</button></div>
+</div>
+
+<div class=card>
+<h2>Pula proxy — rotacja</h2>
+<table><thead><tr><th>ID</th><th>Proxy</th><th>Status</th><th>OK</th><th>Fail</th><th>Consec</th><th></th></tr></thead>
+<tbody id=tb><tr><td colspan=7 class=empty>Zaloguj się, aby zobaczyć pulę</td></tr></tbody></table>
+</div>
+
+</div>
 <script>
 const H=()=>({'x-dashboard-password':document.getElementById('pw').value,'Content-Type':'application/json'});
-async function load(){let r=await fetch('/api/proxies',{headers:H()});if(!r.ok){alert('bad password');return}
-let d=await r.json();let tb=document.querySelector('#tbl tbody');tb.innerHTML='';
-for(const p of d.proxies){let tr=document.createElement('tr');
-tr.innerHTML=`<td>${p.id}</td><td>${p.url}</td><td class=${p.active?'on':'off'}>${p.active?'ON':'OFF'}</td><td>${p.success}</td><td>${p.fail}</td><td>${p.consec_fail}</td>
-<td><button onclick="tog(${p.id})">toggle</button> <button onclick="del(${p.id})">x</button></td>`;tb.appendChild(tr);}}
-async function addP(){await fetch('/api/proxies',{method:'POST',headers:H(),body:JSON.stringify({proxies:document.getElementById('add').value})});document.getElementById('add').value='';load();}
+async function load(){let r=await fetch('/api/proxies',{headers:H()});if(!r.ok){alert('Złe hasło');return}
+let d=await r.json();let tb=document.getElementById('tb');
+document.getElementById('stat').textContent=d.proxies.filter(p=>p.active).length+' / '+d.proxies.length+' proxy aktywnych';
+if(!d.proxies.length){tb.innerHTML='<tr><td colspan=7 class=empty>Brak proxy — dodaj powyżej</td></tr>';return}
+tb.innerHTML='';for(const p of d.proxies){let tr=document.createElement('tr');
+tr.innerHTML='<td class=muted>'+p.id+'</td><td class=mono>'+p.url+'</td><td><span class="pill '+(p.active?'on':'off')+'">'+(p.active?'AKTYWNE':'OFF')+'</span></td><td>'+p.success+'</td><td>'+p.fail+'</td><td>'+p.consec_fail+'</td><td style=text-align:right><button class="btn ghost sm" onclick="tog('+p.id+')">toggle</button> <button class="btn red sm" onclick="del('+p.id+')">usuń</button></td>';tb.appendChild(tr);}}
+async function addP(){let v=document.getElementById('add').value;if(!v.trim())return;await fetch('/api/proxies',{method:'POST',headers:H(),body:JSON.stringify({proxies:v})});document.getElementById('add').value='';load();}
 async function del(id){await fetch('/api/proxies/'+id,{method:'DELETE',headers:H()});load();}
 async function tog(id){await fetch('/api/proxies/'+id+'/toggle',{method:'POST',headers:H()});load();}
+async function test(){let u=document.getElementById('turl').value;let el=document.getElementById('tres');if(!u)return;el.textContent='Pobieram klatki...';
+let r=await fetch('/storyboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:u,max_frames:20})});
+let d=await r.json();
+if(d.frames){el.innerHTML='<span style=color:#22c55e>&#10003;</span> '+d.returned_frames+' klatek &bull; film '+d.duration+'s &bull; '+(d.proxy_used?'proxy '+d.proxy_used:'VM IP')+'<br><span class=mono>'+d.frames.slice(0,6).map(f=>'t='+f.timestamp+'s').join('&nbsp;&nbsp;')+'</span>';}
+else{el.innerHTML='<span style=color:#ef4444>Blad: '+(d.detail||JSON.stringify(d))+'</span>';}}
 </script></body></html>"""
