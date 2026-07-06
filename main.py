@@ -137,14 +137,10 @@ def storyboard(req: Req, x_api_key: Optional[str] = Header(default=None)):
         except Exception as e:
             raise HTTPException(400, f"failed: {str(e)[:200]}")
 
-    # rotacja z puli
+    # rotacja z puli — NIGDY nie uzywamy VM/domowego IP
     pool = active_proxies()
     if not pool:
-        # brak proxy -> VM IP (fallback)
-        try:
-            return fetch_and_process(req.url, None, req.max_frames)
-        except Exception as e:
-            raise HTTPException(400, f"failed (no proxy, VM IP): {str(e)[:200]}")
+        raise HTTPException(503, "no active proxy in pool — odmawiam uzycia IP serwera/domowego")
 
     tried, last = set(), ""
     for _ in range(min(MAX_PROXY_TRIES, len(pool))):
