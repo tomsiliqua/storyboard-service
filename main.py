@@ -18,7 +18,7 @@ BUCKET         = os.getenv("BUCKET", "nca-bucket")
 API_KEY        = os.getenv("API_KEY", "")                       # auth dla /storyboard (naglowek x-api-key)
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
 DB_PATH        = os.getenv("DB_PATH", "/data/proxies.db")
-MAX_PROXY_TRIES = int(os.getenv("MAX_PROXY_TRIES", "3"))        # ile roznych proxy sprobowac zanim fail
+MAX_PROXY_TRIES = int(os.getenv("MAX_PROXY_TRIES", "8"))        # ile roznych proxy sprobowac zanim fail
 AUTO_DISABLE_AFTER = int(os.getenv("AUTO_DISABLE_AFTER", "5"))  # po ilu consec fail wylaczyc proxy
 TILE_W, TILE_H = 320, 180
 
@@ -75,14 +75,19 @@ class Req(BaseModel):
 def fetch_and_process(url, proxy, max_frames):
     tmp = tempfile.mkdtemp()
     try:
-        ydl_opts = {"quiet": True, "skip_download": True, "no_warnings": True, "socket_timeout": 15}
+        # klient android_vr,web_safari = mniej anti-bota na metadata (memory: czysty bypass);
+        # sb0 dostepne w tych klientach (zweryfikowane live 2026-07-05)
+        ydl_opts = {"quiet": True, "skip_download": True, "no_warnings": True, "socket_timeout": 15,
+                    "extractor_args": {"youtube": {"player_client": ["android_vr", "web_safari"]}}}
         if proxy: ydl_opts["proxy"] = proxy
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         duration = info.get("duration") or 0
         video_id = info.get("id") or uuid.uuid4().hex
 
-        cmd = ["yt-dlp", "--socket-timeout", "15", "-f", "sb0", "-o", os.path.join(tmp, "sb.%(ext)s"), url]
+        cmd = ["yt-dlp", "--socket-timeout", "15",
+               "--extractor-args", "youtube:player_client=android_vr,web_safari",
+               "-f", "sb0", "-o", os.path.join(tmp, "sb.%(ext)s"), url]
         if proxy: cmd += ["--proxy", proxy]
         r = subprocess.run(cmd, capture_output=True, timeout=60)
         mh = glob.glob(os.path.join(tmp, "sb.mhtml"))
